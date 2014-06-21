@@ -5,6 +5,9 @@ import requests
 import redis
 
 
+colredis = redis.StrictRedis(host='redis-current.us.archive.org', port=6377)
+
+
 def get_md(id):
     r = requests.get('http://archive.org/metadata/%s' % (id))
     # print r
@@ -48,6 +51,13 @@ def main():
         sys.exit(0)
 
     find_ancestry(args.id)
+
+    hello = {"foo":1, "bar": 2}
+    colredis.hmset("hello", hello)
+
+    h = colredis.hgetall("hello")
+
+    print h
 
     print
 
