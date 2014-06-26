@@ -3,6 +3,7 @@
 import sys
 import requests
 import redis
+import argparse
 
 
 colredis = redis.StrictRedis(host='redis-current.us.archive.org', port=6377)
@@ -16,28 +17,60 @@ def get_md(id):
     # print r.encoding
     return r.json()
 
+def taglike_collections():
+    return [ 'stream_only', 'printdisabled' ] 
 
-def find_ancestry(id):
-    print id
+def reexpand_ancestry(id,dict,flattened=None):
+    if flattened is None:
+        flattened = []
+    if id in dict.keys():
+        parents = dict[id]
+        if (id not in flattened): # and (len(parents) > 0):
+            flattened.append(id)
+        for parent in parents:
+            reexpand_ancestry(parent,dict,flattened)
+    else:
+        print '\tDISCONNECTED VALUE? ',id
+    return flattened
+
+def find_ancestry(id,dict=None,tags=None):
+    root_item = False
+    if dict is None:
+        dict = {}
+        root_item = True
+    if tags is None:
+        tags = taglike_collections()
+#    print id
     md = get_md(id)
-    if md:
-        if 'metadata' not in md:
-            print 'no meta', id
-            return
-        meta = md['metadata']
-        if 'collection' not in meta:
-            print 'no collection', id
-            return
-        c = md['metadata']['collection']
-        print id, c
-        if isinstance(c, basestring) or isinstance(c, str):
-            c = [c]
-        for pc in c:
-            find_ancestry(pc)
-
+    if md and 'metadata' in md:
+        if 'collection' in md['metadata']:
+            c = md['metadata']['collection']
+            if isinstance(c, basestring) or isinstance(c, str):
+                c = [c]
+        else:
+            c = []
+        if root_item:
+            print 'On disk:\n\t', c
+        # parents = [a for a in c if (a in tags) or (c.index(a) == 0)]          coding explicitly to collect cruft with index > 0
+        parents = []
+        crufty_ancestors = []
+        for cand in c:
+            if (cand in tags) or (c.index(cand) == 0):
+                parents.append(cand)
+            else:
+                crufty_ancestors.append(cand)
+        for parent in parents:
+            if parent not in dict.keys():
+                find_ancestry(parent,dict,tags)
+        dict[id] = parents
+        for cruft in crufty_ancestors:
+            if cruft not in dict.keys():
+                print '\tCRUFT -or- INTENTIONAL MULTIPLE: ', cruft
+    else:
+        print '\t(could not get md)'
+    return dict
 
 def main():
-    import argparse
     parser = argparse.ArgumentParser()
     parser.add_argument('id', nargs='?', default=False)
     parser.add_argument('--foo',
@@ -50,16 +83,20 @@ def main():
         parser.print_help()
         sys.exit(0)
 
-    find_ancestry(args.id)
+    dict = find_ancestry(args.id)
+    print 'Dictionary representation:\n\t', dict
+    
+    flattened = reexpand_ancestry(args.id,dict)
+    flattened.remove(args.id)
+    print 'Rehydrated flat list:\n\t', flattened
 
-    hello = {"foo":1, "bar": 2}
-    colredis.hmset("hello", hello)
+    if False:
+        hello = {"foo":1, "bar": 2}
+        colredis.hmset("hello", hello)
 
-    h = colredis.hgetall("hello")
+        h = colredis.hgetall("hello")
 
-    print h
-
-    print
+        print h
 
 
 if __name__ == '__main__':
