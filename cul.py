@@ -76,6 +76,12 @@ def main():
     parser.add_argument('--foo',
                         help='foo',
                         action='store_true')
+    parser.add_argument('--dehydrate',
+                        help='ximmanalysis',
+                        action='store_true')
+    parser.add_argument('--testscript',
+                        help='test redis scripting',
+                        action='store_true')
     largs = parser.parse_args()
     global args
     args = largs
@@ -83,19 +89,26 @@ def main():
         parser.print_help()
         sys.exit(0)
 
-    dict = find_ancestry(args.id)
-    print 'Dictionary representation:\n\t', dict
+    if args.dehydrate
+        dict = find_ancestry(args.id)
+        print 'Dictionary representation:\n\t', dict
     
-    flattened = reexpand_ancestry(args.id,dict)
-    flattened.remove(args.id)
-    print 'Rehydrated flat list:\n\t', flattened
+        flattened = reexpand_ancestry(args.id,dict)
+        flattened.remove(args.id)
+        print 'Rehydrated flat list:\n\t', flattened
 
+    if args.testscript:
+        pass
+
+# ximmanalysishttp://redis.io/commands/EVAL
+# eval "return {KEYS[1],KEYS[2],ARGV[1],ARGV[2]}" 2 key1 key2 first second
+
+        
     if False:
         hello = {"foo":1, "bar": 2}
         colredis.hmset("hello", hello)
 
         h = colredis.hgetall("hello")
-
         print h
 
 
